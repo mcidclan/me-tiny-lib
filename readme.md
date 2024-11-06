@@ -6,7 +6,8 @@ A tiny PSP Media Engine library using **LibPspExploit**, which does not require 
 `main.cpp` serves as a sample that runs a counter over the Media Engine.
 
 ## Requirements
-To use this library, include a compiled version of `LibPspExploit` with its header files in the `vendor` directory. Use the latest version provided in the repository's release section.
+To use this library, you could include a compiled version of `LibPspExploit` with its header files in the `vendor` directory. Use the latest version provided in the repository's release section.
+Alternatively, you could place the `.c` files related to `LibPspExploit` directly in the `vendor` folder. Just use `make clean; make` to compile the project in both cases.
 
 ## Special Thanks
 

@@ -18,12 +18,12 @@ int meLoop() {
   return !stop;
 }
 
-int main(int argc, char **argv) {
+int main() {
   scePowerSetClockFrequency(333, 333, 166);
 
   // Uncache memory with 0x40000000 to avoid cache line conflicts
   void* const _mem = memalign(16, sizeof(int) * 4);
-  mem = (int* const) (0x40000000 | (u32)_mem);
+  mem = (int*) (0x40000000 | (u32)_mem);
   memset((void*)mem, 0, sizeof(int) * 4);
   ((u32*)_mem)[2] = 888;
   
