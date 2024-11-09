@@ -31,12 +31,12 @@ extern char __start__me_section;
 extern char __stop__me_section;
 __attribute__((section("_me_section")))
 void _handler() {
-  reg(0xbc100050) = 0x04;          // 0b100; // enable AW RegB Bus
-  reg(0xbc100004) = 0xFFFFFFFF; // clear all interrupts, just usefull
-  reg(0xbc100040) = 0x02;       // allow 64MB ram, probably better (default is 16MB)
+  vrg(0xbc100050) = 0x04;          // 0b100; // enable AW RegB Bus
+  vrg(0xbc100004) = 0xFFFFFFFF; // clear all interrupts, just usefull
+  vrg(0xbc100040) = 0x02;       // allow 64MB ram, probably better (default is 16MB)
   asm("sync");
   
-  volatile TinyMeCom* const meCom = (volatile TinyMeCom*)(ME_HANDLER_BASE + reg(ME_SIZE_ADDR));
+  volatile TinyMeCom* const meCom = (volatile TinyMeCom*)(ME_HANDLER_BASE + vrg(ME_SIZE_ADDR));
   while (1) {
     tinyMeDCacheWritebackInvalidAll();
     if (!meCom->func()) {
@@ -48,16 +48,16 @@ void _handler() {
 static inline void _tinyMeInit(TinyMeCom* const tinyMeCom) {
   void* start = &__start__me_section;
   const u32 size = (u32)(&__stop__me_section - (u32)start);
-  reg(ME_SIZE_ADDR) = size;
+  vrg(ME_SIZE_ADDR) = size;
   asm("sync");
 
   volatile TinyMeCom* const _com = (volatile TinyMeCom*)(ME_HANDLER_BASE + size);
   _memcpy((void*)_com, tinyMeCom, sizeof(TinyMeCom));
   _memcpy((void *)ME_HANDLER_BASE, start, size);
 
-  reg(0xBC10004C) |= 0x04;        // 0b0100;  // reset enable, just the me
+  vrg(0xBC10004C) |= 0x04;        // 0b0100;  // reset enable, just the me
   asm("sync");
-  reg(0xBC10004C) = 0x0;          // disable reset to start the me
+  vrg(0xBC10004C) = 0x0;          // disable reset to start the me
   asm("sync"); 
   
   tinyMeDCacheWritebackInvalidAll();
