@@ -54,13 +54,12 @@ static inline void _tinyMeInit(TinyMeCom* const tinyMeCom) {
   volatile TinyMeCom* const _com = (volatile TinyMeCom*)(ME_HANDLER_BASE + size);
   _memcpy((void*)_com, tinyMeCom, sizeof(TinyMeCom));
   _memcpy((void *)ME_HANDLER_BASE, start, size);
+  tinyMeDCacheWritebackInvalidAll();
 
   vrg(0xBC10004C) |= 0x04;        // 0b0100;  // reset enable, just the me
   asm("sync");
   vrg(0xBC10004C) = 0x0;          // disable reset to start the me
   asm("sync"); 
-  
-  tinyMeDCacheWritebackInvalidAll();
 }
 
 static void _kernelInitMe() {
