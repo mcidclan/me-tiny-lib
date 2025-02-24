@@ -1,10 +1,9 @@
 #include "tinyme.h"
-#define ME_HANDLER_BASE 0xbfc00040
-#define ME_SIZE_ADDR 0xbfc00160
+#define ME_HANDLER_BASE 0xbfc00000
 
-static TinyMeCom* _tinyMeCom = nullptr;
+extern int meLoop();
 
-void tinyMeDCacheWritebackInvalidAll() {
+void meDCacheWritebackInvalidAll() {
  for (int i = 0; i < 8192; i += 64) {
   asm("cache 0x14, 0(%0)" :: "r"(i));
   asm("cache 0x14, 0(%0)" :: "r"(i));
@@ -12,70 +11,68 @@ void tinyMeDCacheWritebackInvalidAll() {
  asm("sync");
 }
 
-static void inline _memcpy(void* d, const void* s, u32 size) {
-  u8* dst = (u8*)d;
-  const u8* src = (const u8*)s;
-  while (size >= 4) {
-    *(u32*)dst = *(const u32*)src;
-    dst += 4;
-    src += 4;
-    size -= 4;
+u32* meGetUncached32(const u32 size) {
+  static void* _base = nullptr;
+  if (!_base) {
+    _base = memalign(16, size*4);
+    memset(_base, 0, size);
+    sceKernelDcacheWritebackInvalidateAll();
+    return (u32*)(UNCACHED_USER_MASK | (u32)_base);
+  } else if (!size) {
+    free(_base);
   }
-  while (size > 0) {
-    *dst++ = *src++;
-    size--;
-  }
+  return nullptr;
 }
+
+void meHalt() {
+  asm volatile(".word 0x70000000");
+}
+
 
 extern char __start__me_section;
 extern char __stop__me_section;
 __attribute__((section("_me_section")))
-void _handler() {
-  vrg(0xbc100050) = 0x04;          // 0b100; // enable AW RegB Bus
-  vrg(0xbc100004) = 0xFFFFFFFF; // clear all interrupts, just usefull
-  vrg(0xbc100040) = 0x02;       // allow 64MB ram, probably better (default is 16MB)
+void meHandler() {
+  hw(0xbc100050) = 0x0f;       // 0b1111, enable me and AW buses
+  hw(0xbc100004) = 0xffffffff; // enable NMI interrupts in the global hardware context
+  hw(0xbc100040) = 0x02;       // allow 64MB ram
   asm("sync");
   
-  volatile TinyMeCom* const meCom = (volatile TinyMeCom*)(ME_HANDLER_BASE + vrg(ME_SIZE_ADDR));
-  while (1) {
-    tinyMeDCacheWritebackInvalidAll();
-    if (!meCom->func()) {
-      break;
-    }
-  }
+  asm volatile(
+    "li          $k0, 0x30000000\n"
+    "mtc0        $k0, $12\n"
+    "sync\n"
+    "la          $k0, %0\n"
+    "li          $k1, 0x80000000\n"
+    "or          $k0, $k0, $k1\n"
+    "jr          $k0\n"
+    "nop\n"
+    :
+    : "i" (meLoop)
+    : "k0"
+  );
+  
 }
 
-static inline void _tinyMeInit(TinyMeCom* const tinyMeCom) {
-  void* start = &__start__me_section;
-  const u32 size = (u32)(&__stop__me_section - (u32)start);
-  vrg(ME_SIZE_ADDR) = size;
-  asm("sync");
-
-  volatile TinyMeCom* const _com = (volatile TinyMeCom*)(ME_HANDLER_BASE + size);
-  _memcpy((void*)_com, tinyMeCom, sizeof(TinyMeCom));
-  _memcpy((void *)ME_HANDLER_BASE, start, size);
-  tinyMeDCacheWritebackInvalidAll();
-
-  vrg(0xBC10004C) |= 0x04;        // 0b0100;  // reset enable, just the me
-  asm("sync");
-  vrg(0xBC10004C) = 0x0;          // disable reset to start the me
-  asm("sync"); 
-}
-
-static void _kernelInitMe() {
+static void kernelMeInit() {
   int k1 = pspSdkSetK1(0);
-  _tinyMeInit(_tinyMeCom);
+  #define me_section_size (&__stop__me_section - &__start__me_section)
+  memcpy((void *)ME_HANDLER_BASE, (void*)&__start__me_section, me_section_size);
+  meDCacheWritebackInvalidAll();
+  // reset me
+  hw(0xbc10004c) = 0x04;
+  hw(0xbc10004c) = 0x0;
+  asm volatile("sync");
   pspXploitRepairKernel();
   pspSdkSetK1(k1);
 }
 
-int tinyMeInit(TinyMeCom* const tinyMeCom) {
-  _tinyMeCom = tinyMeCom;
+int meInit() {
   int res = pspXploitInitKernelExploit();
   if (res == 0) {
     res = pspXploitDoKernelExploit();
     if (res == 0) {
-      pspXploitExecuteKernel((u32)_kernelInitMe);
+      pspXploitExecuteKernel((u32)kernelMeInit);
       return 0;
     }
   }

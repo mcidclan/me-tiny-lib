@@ -5,10 +5,8 @@ extern "C" {
   #include "libpspexploit.h"
 }
 #endif
-typedef int (*TinyMeFunc)(void);
-typedef struct c {
-  u32* data;
-  TinyMeFunc func;
-} TinyMeCom;
-int tinyMeInit(TinyMeCom* const tinyMeCom);
-void tinyMeDCacheWritebackInvalidAll();
+
+int meInit();
+void meHalt();
+u32* meGetUncached32(const u32);
+void meDCacheWritebackInvalidAll();
