@@ -7,6 +7,8 @@ extern "C" {
 #endif
 
 int meInit();
+void meDcacheWritebackInvalidateAll();
 void meHalt();
-u32* meGetUncached32(const u32);
-void meDCacheWritebackInvalidAll();
+void meGetUncached32(volatile u32** const mem, const u32 size);
+void meUnlockHwUserRegisters();
+void meUnlockMemory();

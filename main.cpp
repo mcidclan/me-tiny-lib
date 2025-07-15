@@ -15,7 +15,7 @@ float meFloat = 0.4f;
 void meLoop() {
   meFloat += 0.5f;
   do {
-    meDCacheWritebackInvalidAll();
+    meDcacheWritebackInvalidateAll();
   } while(!mem);
   
   do {
@@ -27,7 +27,7 @@ void meLoop() {
 int main() {
   scePowerSetClockFrequency(333, 333, 166);
 
-  mem = meGetUncached32(4);
+  meGetUncached32(&mem, 4);
   
   pspDebugScreenInit();
   pspDebugScreenSetXY(0, 1);
@@ -53,7 +53,7 @@ int main() {
   pspDebugScreenPrintf("Exiting...");
   sceKernelDelayThread(100000);
   
-  meGetUncached32(0);
+  meGetUncached32(&mem, 0);
   sceKernelExitGame();
   return 0;
 }
