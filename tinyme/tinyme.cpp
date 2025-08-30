@@ -19,10 +19,16 @@ void meHalt() {
 void meGetUncached32(volatile u32** const mem, const u32 size) {
   static void* _base = nullptr;
   if (!_base) {
-    _base = memalign(16, size*4);
-    memset(_base, 0, size);
-    *mem = (u32*)(UNCACHED_USER_MASK | (u32)_base);
+    const u32 byteCount = size * 4;
+    _base = memalign(16, byteCount);
+    memset(_base, 0, byteCount);
     sceKernelDcacheWritebackInvalidateAll();
+    *mem = (u32*)(UNCACHED_USER_MASK | (u32)_base);
+    __asm__ volatile (
+      "cache 0x1b, 0(%0)  \n"
+      "sync               \n"
+      : : "r" (mem) : "memory"
+    );
     return;
   } else if (!size) {
     free(_base);
@@ -68,17 +74,19 @@ void meHandler() {
   vmeSetMinimalConfig();
   
   asm volatile(
-    "li          $k0, 0x30000000\n"
-    "mtc0        $k0, $12\n"
-    "sync\n"
-    "la          $k0, %0\n"
-    "li          $k1, 0x80000000\n"
-    "or          $k0, $k0, $k1\n"
-    "jr          $k0\n"
-    "nop\n"
+    "li          $k0, 0x30000000     \n"
+    "mtc0        $k0, $12            \n"
+    "sync                            \n"
+    "la          $k0, %0             \n"
+    "li          $k1, 0x80000000     \n"
+    "or          $k0, $k0, $k1       \n"
+    "cache       0x8, 0($k0)         \n"
+    "sync                            \n"
+    "jr          $k0                 \n"
+    "nop                             \n"
     :
     : "i" (meLoop)
-    : "k0"
+    : "k0", "k1", "memory"
   );
   
 }
